@@ -1,4 +1,4 @@
-# RMapAlign3N v1.0.0
+# RMapAlign3N v0.1.0
 
 RMapAlign3N is a tool that maps next generation sequencing reads to a reference genome or reference transcriptome.
 In particular, it is aimed for processing reads stemming from 3N nucleotide conversion treatment like bisulfite sequencing where one nucleobase is exchanged for another based on the presence or absence of a modification in the original biomelecule like, e.g., methylation.
@@ -53,9 +53,7 @@ In rare cases databases built on one platform might not work with RMapAlign3N on
 ## Building a Reference Database
 
 RmapAlign3N's [build mode](docs/mode_build.txt) is used for creating databases.
-
-### Reference Files
-Must be in FASTA or FASTQ format.
+Reference Files must be in FASTA or FASTQ format.
 
 You can either specify all input files separately:
 ```
