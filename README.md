@@ -83,7 +83,7 @@ Once a database is built you can map reads.
   ```
 * with SAM + alignment output:
   ```
-  ./rmapalign3n query myrefdb my_reads.fq -sam -aling -out results.sam
+  ./rmapalign3n query myrefdb my_reads.fq -sam -align -out results.sam
   ```
 * an entire directory containing FASTA/FASTQ files:
   ```
