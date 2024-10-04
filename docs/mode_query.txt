@@ -1,0 +1,278 @@
+SYNOPSIS
+
+    rmapalign3n query <database>
+
+    rmapalign3n query <database> <sequence file/directory>... [OPTION]...
+
+    rmapalign3n query <database> [OPTION]... <sequence file/directory>...
+
+
+DESCRIPTION
+
+    Map sequences (short reads, long reads, ...)
+    to their most likely reference sequence region(s) of origin.
+
+
+BASIC PARAMETERS
+
+    <database>        database file name;
+                      An RmapAlign3N database contains min-hash signatures of
+                      reference sequences.
+
+    <sequence file/directory>...
+                      FASTA or FASTQ files containing sequences
+                      (short reads, long reads, ...) that shall be classified.
+                      * If directory names are given, they will be searched for
+                      sequence files (at most 10 levels deep).
+                      * If no input filenames or directories are given, RmapAlign3N
+                      will run in interactive query mode. This can be used to
+                      load the database into memory only once and then query it
+                      multiple times with different query options. 
+
+
+-out <file>           Redirect output to file <file>.
+                      If not specified, output will be written to stdout. If
+                      more than one input file was given all output will be
+                      concatenated into one file.
+
+
+-sam                  Generate output in SAM format instead of RmapAlign3N's
+                      default format. 
+
+
+-with-sam-out <file>  Generates SAM format output in addition to default output.
+                      Output is redirected to <file>.
+
+
+-with-bam-out <file>  Generates BAM format output in addition to default output.
+                      Output is redirected to <file>.
+
+
+PAIRED-END READ HANDLING
+
+    -pairfiles        Interleave paired-end reads from two consecutive files, so
+                      that the nth read from file m and the nth read from file
+                      m+1 will be treated as a pair. If more than two files are
+                      provided, their names will be sorted before processing.
+                      Thus, the order defined by the filenames determines the
+                      pairing not the order in which they were given in the
+                      command line.
+
+
+    -pairseq          Two consecutive sequences (1+2, 3+4, ...) from each file
+                      will be treated as paired-end reads.
+
+
+    -insertsize <#>   Maximum insert size to consider.
+                      default: sum of lengths of the individual reads
+
+
+CLASSIFICATION
+
+    -hitmin <t>       Sets classification threshold 't^min' to <t>.
+                      All candidates with fewer hits are discarded from the
+                      query's candidate set.
+                      default: 4
+
+    -maxcand <#>      Has no effect. (Requires selection of
+                      best_distinct_matches_... candidate generator in
+                      config.h).
+
+
+    -hit-cutoff <t>   Sets classification threshhold 't^cutoff' to <t>.
+                      All candidates with fewer hits (relative to the maximal
+                      candidate) are discarded from the query's candidate set.
+                      default: 0.800000
+
+    -cov-min <p>      Sets classification coverage threshold 't^cov' to <t>
+                      Candidates on targets with lower coverage will be
+                      discarded.
+                      default: 0.900000
+
+    -align            Enables post-mapping alignment step and filters candidates
+                      accordingly. Candidates are only aligned during mapping
+                      phase, not during coverage phase. Alignments are only
+                      shown in SAM / BAM output modes.
+                      DRASTICALLY increases runtime!
+                      default: -1
+
+    -max-edit <t>     Maximum allowed edit distance of alignments (enables
+                      -align). Alignments with higher edit distance will not be
+                      considered. Higher values drastically increase runtime! -1
+                      = unlimited
+                      default: -1
+
+    -no-cov-norm      Disable max norm of coverage statistic.
+                      default: disabled
+
+    -fill-coverage    Include caps in candidates' contiguous window ranges in
+                      coverage. Waves 2nd coverage condition (see paper).
+                      default: disabled
+
+
+GENERAL OUTPUT FORMATTING
+
+    -no-summary       Dont't show result summary & mapping statistics at the end
+                      of the mapping output
+                      default: off
+
+    -no-query-params  Don't show query settings at the beginning of the mapping
+                      output
+                      default: off
+
+    -no-err           Suppress all error messages.
+                      default: off
+
+
+CLASSIFICATION RESULT FORMATTING
+
+    -no-default       Don't show default mapping output for each individual
+                      query. show summaries and / or alternative output
+                      (SAM/BAM).
+                      default: off
+
+    -mapped-only      Don't list unclassified reads/read pairs.
+                      default: off
+
+    -tgtids           Print target ids in addition to target names.
+                      default: off
+
+    -tgtids-only      Print target ids instead of target names.
+                      default: off
+
+    -separator <text> Sets string that separates output columns.
+                      default: '\t|\t'
+
+    -comment <text>   Sets string that precedes comment (non-mapping) lines.
+                      default: '# '
+
+    -queryids         Show a unique id for each query.
+                      Note that in paired-end mode a query is a pair of two read
+                      sequences.
+                      default: off
+
+
+ANALYSIS: RAW DATABASE HITS
+
+    -allhits          For each query, print all feature hits in database.
+                      default: off
+
+    -locations        Show locations in candidate reference sequences.
+                      default: off
+
+
+ADVANCED: GROUND TRUTH BASED EVALUATION
+
+    -ground-truth     Report correct query taxa if known.
+                      Queries need to have either a 'tgtid|<number>' entry in
+                      their header or a sequence id that is also present in the
+                      database.
+                      This feature decreases querying speed!
+                      default: off
+
+    -statistics       Report mapping statistics such as number of hits per read.
+                      See: -accuracy for more stats.
+                      default: off
+
+    -accuracy         Report accuracy statistics by comparing query origins
+                      (ground truth) and mappings.
+                      Queries need to have either a 'tgtid|<number>' entry in
+                      their header or a sequence id that is also found in the
+                      database. Equivalent to -ground-truth -statistics
+                      This feature might decrease querying speed!
+                      default: off
+
+
+ADVANCED: CUSTOM QUERY SKETCHING (SUBSAMPLING)
+
+    -kmerlen <k>      number of nucleotides/characters in a k-mer
+                      default: determined by database
+
+    -sketchlen <s>    number of features (k-mer hashes) per sampling window
+                      default: determined by database
+
+    -winlen <w>       number of letters in each sampling window
+                      default: determined by database
+
+    -winstride <l>    distance between window starting positions
+                      default: determined by database
+
+
+ADVANCED: DATABASE MODIFICATION
+
+    -max-locations-per-feature <#>
+                      maximum number of reference sequence locations to be
+                      stored per feature;
+                      If the value is too high it will significantly impact
+                      querying speed. Note that an upper hard limit is always
+                      imposed by the data type used for the hash table bucket
+                      size (set with compilation macro
+                      '-DRMA_LOCATION_LIST_SIZE_TYPE').Can also be set in query
+                      mode.
+                      default: 254
+
+    -remove-overpopulated-features
+                      Removes all features that have reached the maximum allowed
+                      amount of locations per feature. This can improve querying
+                      speed and can be used to remove non-discriminative
+                      features.Can also be set in query mode.
+                      default: on
+
+    -max-ambig-per-feature <#>
+                      Maximum number of allowed different reference sequences
+                      per feature. Removes all features exceeding this limit
+                      from database.
+                      default: off
+
+    -max-load-fac <factor>
+                      maximum hash table load factor;
+                      This can be used to trade off larger memory consumption
+                      for speed and vice versa. A lower load factor will improve
+                      speed, a larger one will improve memory efficiency.
+                      default: 0.800000
+
+
+ADVANCED: PERFORMANCE TUNING / TESTING
+
+    -threads <#>      Sets the maximum number of parallel threads to use.
+                      default (on this machine): 16
+
+    -bam-threads <#>  Sets the maximum number of parallel thread to use for BAM
+                      processing. (In addition to threads of -threads parameter.
+                      default: 16
+
+    -batch-size <#>   Process <#> many queries (reads or read pairs) per thread
+                      at once.
+                      default (on this machine): 4096
+
+    -bam-buffer <t>   Sets pre-allocated size of buffer for BAM processing to
+                      2^<t>.
+                      default: 33554432
+
+    -query-limit <#>  Classify at max. <#> queries (reads or read pairs) per
+                      input file.
+                      default: 9223372036854775807
+
+
+EXAMPLES
+
+    Align all sequences in 'myreads.fna' against pre-built database 'refdb':
+        rmapalign3n query refdb myreads.fna -out results.txt
+
+    same as before but with SAM output:
+        rmapalign3n query refdb myreads.fna -sam -out results.txt
+
+    Align all sequences in multiple files against database 'refdb':
+        rmapalign3n query refdb reads1.fna reads2.fna reads3.fna
+
+    Align all sequence files in folder 'test' againgst database 'refdb':
+        rmapalign3n query refdb test
+
+    Align multiple files and folder contents against database 'refdb':
+        rmapalign3n query refdb file1.fna folder1 file2.fna file3.fna folder2
+
+    Load database in interactive query mode, then query multiple read batches
+        rmapalign3n query refdb
+        reads1.fa reads2.fa -pairfiles -insertsize 400
+        reads3.fa -pairseq -insertsize 300
+
