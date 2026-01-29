@@ -367,16 +367,16 @@ struct edlib_alignment {
 
     enum struct status {FORWARD, REVERSE, UNALIGNED};
 
-    edlib_alignment(const std::string& query, target_id tgt, const database& db, int max_edit_distance):
+    edlib_alignment(const std::string& query, target_id tgt, window_range win_rng, const database& db, int max_edit_distance):
         tgt_(tgt), status_(status::UNALIGNED), score_(query.size()), cigar_(nullptr)
     {
-        const std::string& target = db.get_target(tgt).seq();
-
+        auto target = db.get_target_slice(tgt, win_rng.beg, win_rng.end, query.size());
+        size_t slice_position = db.get_target_slice_pos(win_rng.beg, query.size());
         auto edlib_config = edlibNewAlignConfig(max_edit_distance, EDLIB_MODE_HW, EDLIB_TASK_PATH, additionalEqualities.data(), additionalEqualities.size());
         
-        auto regular = edlibAlign(query.c_str(), query.size(), target.c_str(), target.size(), edlib_config);
+        auto regular = edlibAlign(query.c_str(), query.size(), target.data(), target.size(), edlib_config);
         std::string reverse_query = make_reverse_complement(query);
-        auto reverse_complement = edlibAlign(reverse_query.c_str(), reverse_query.size(), target.c_str(), target.size(), edlib_config);
+        auto reverse_complement = edlibAlign(reverse_query.c_str(), reverse_query.size(), target.data(), target.size(), edlib_config);
         
         if (regular.status != EDLIB_STATUS_OK || regular.status != EDLIB_STATUS_OK) {
             throw std::runtime_error{"edlib failed!"};
@@ -402,6 +402,9 @@ struct edlib_alignment {
             score_ = reverse_complement.editDistance;
             cigar_ = edlibAlignmentToCigar(reverse_complement.alignment, reverse_complement.alignmentLength, EDLIB_CIGAR_STANDARD);
         }
+        // adjust start and end to original target coordinates
+        start_ += slice_position;
+        end_ += slice_position;
         edlibFreeAlignResult(regular);
         edlibFreeAlignResult(reverse_complement);
     }
@@ -438,9 +441,9 @@ private:
 std::vector<EdlibEqualityPair> edlib_alignment::additionalEqualities({{'a', 'A'}, {'t', 'T'}, {'c', 'C'}, {'g', 'G'}});
 
 struct edlib_alignment_pair {
-    edlib_alignment_pair(const sequence_query& query, target_id tgt, const database& db, int max_edit_distance):
-        first(query.seq1, tgt, db, max_edit_distance),
-        second(query.seq2, tgt, db, max_edit_distance)
+    edlib_alignment_pair(const sequence_query& query, target_id tgt, window_range win_rng, const database& db, int max_edit_distance):
+        first(query.seq1, tgt, win_rng, db, max_edit_distance),
+        second(query.seq2, tgt, win_rng, db, max_edit_distance)
     {}
 
     bool aligned() const noexcept {return first.aligned() || second.aligned();}
@@ -785,8 +788,11 @@ void show_bam_alignment(bam_buffer& bam_buf, const sequence_query& query, const 
 
 
 #ifdef RMA_BAM
-void show_bam_minimal(bam_buffer& bam_buf, const database& db, const sequence_query& query, target_id tgt, bool primary) 
-{
+void show_bam_minimal(bam_buffer& bam_buf, const database& db, const sequence_query& query, target_id tgt, bool primary) {
+
+    // function only applicable for mapped reads atm
+    // function only applicable for paired reads atm
+
     size_t l_tgt = db.get_target(tgt).seq().size();
     size_t l_read = query.seq1.size();
     int64_t l_template = std::min(l_tgt, l_read);
@@ -822,6 +828,7 @@ void prepare_bam(const database& db, const query_options& opt, classification_re
     hts_set_threads(results.bamOut, opt.performance.bamThreads);
     results.bamHdr = sam_hdr_parse(sam_header_text.size(), sam_header_text.data());
     sam_hdr_write(results.bamOut, results.bamHdr);
+    // TODO handle errors
 }
 #endif
 
@@ -830,7 +837,7 @@ void show_as_alignment(mappings_buffer& buf, const database& db,
     const query_options& opt, const sequence_query& query, 
     const classification_candidates& cands)
 {
-    if (opt.output.samMode == sam_mode::none || cands.empty())
+    if (opt.output.samMode == sam_mode::none || cands.empty()) // TODO allow showing of unmapped in SAM / BAM
         return;
 
     size_t primary = 0;
@@ -854,13 +861,13 @@ void align_candidates(mappings_buffer& buf, const database& db,
     const query_options& opt, const sequence_query& query, 
     classification_candidates& cands)
 {
-    if (cands.empty()) return; 
+    if (cands.empty()) return; //TODO allow showing of unmapped in SAM / BAM
     
     alns_vector alns;
     size_t primary = 0;
 
     const auto align_candidate = [&](const auto& cand) {
-        alns.emplace_back(query, cand.tgt, db, opt.classify.maxEditDist);
+        alns.emplace_back(query, cand.tgt, cand.pos, db, opt.classify.maxEditDist);
         if (!alns.back().aligned()) {
             alns.pop_back();
             return true;
@@ -873,12 +880,12 @@ void align_candidates(mappings_buffer& buf, const database& db,
     cands.erase(std::remove_if (cands.begin(), cands.end(), align_candidate), cands.end());
 
     if (opt.output.samMode == sam_mode::sam)
-        for (size_t i = 0; i < alns.size(); ++i)
+        for (size_t i = 0; i < alns.size(); ++i) //TODO allow showing of unmapped in SAM / BAM
             show_sam_alignment(buf.align_out, db, query, alns[i], i == primary);
     
     #ifdef RMA_BAM
     else if (opt.output.samMode == sam_mode::bam)
-        for (size_t i = 0; i < alns.size(); ++i) 
+        for (size_t i = 0; i < alns.size(); ++i) //TODO allow showing of unmapped in SAM / BAM
             show_bam_alignment(buf.bam_buf, query, alns[i], i == primary);
     #endif
 }

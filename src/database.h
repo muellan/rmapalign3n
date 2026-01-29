@@ -35,6 +35,7 @@
 #include <type_traits>
 #include <cstdint>
 #include <string>
+#include <string_view>
 #include <limits>
 #include <memory>
 #include <future>
@@ -50,6 +51,7 @@
 #include "dna_encoding.h"
 #include "typename.h"
 #include "sequence_io.h"
+#include "sequence_view.h"
 
 #include "batch_processing.h"
 
@@ -220,6 +222,24 @@ public:
     using file_source = target::file_source;
 
     const target& get_target(target_id id) const noexcept { return targets_[id]; }
+
+ 
+    std::string_view get_target_slice(target_id t_id, window_id w_beg_id, window_id w_end_id,  size_t padding_length) const noexcept {
+        size_t start = w_beg_id * querySketcher_.window_stride();
+        start = (start > padding_length) ? start - padding_length : 0;
+        size_t end = (w_end_id * querySketcher_.window_stride()) + querySketcher_.window_size();
+        end = end + padding_length < targets_[t_id].seq_.size() ? end + padding_length : targets_[t_id].seq_.size();
+        return std::string_view(
+            targets_[t_id].seq_.data() + start,
+            end - start
+        );
+    }
+
+    size_t get_target_slice_pos(window_id w_beg_id, size_t padding_length) const noexcept {
+        size_t start = w_beg_id * querySketcher_.window_stride();
+        start = (start > padding_length) ? start - padding_length : 0;
+        return start;
+    }
 
 
     //-----------------------------------------------------
